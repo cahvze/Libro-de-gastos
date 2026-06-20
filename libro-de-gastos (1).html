@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Libro de Gastos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper-light:#EDF3EC;
+    --paper-dark:#DCE8DB;
+    --paper-edge:#C3D4C1;
+    --ink:#1B2A4A;
+    --ink-soft:#44546B;
+    --red:#B23A2E;
+    --brass:#9C7A3C;
+    --brass-track:#E7DEC9;
+    --muted:#5B6B63;
+    --cover:#14213D;
+    --white:#FBFAF6;
+    --radius:3px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper-light);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--brass-track);color:var(--ink);}
+  :focus-visible{outline:2px solid var(--ink); outline-offset:2px;}
+
+  .cover{
+    background:var(--cover);
+    color:var(--white);
+    padding:22px 24px 26px;
+    border-bottom:4px double var(--brass);
+  }
+  .cover-row{
+    display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap;
+    max-width:980px; margin:0 auto;
+  }
+  .cover h1{
+    font-family:'Special Elite', monospace;
+    font-size:clamp(22px,4vw,30px);
+    margin:0 0 4px;
+    letter-spacing:0.5px;
+  }
+  .cover p{
+    margin:0; font-size:13px; color:#C7CEDB; font-style:italic;
+  }
+  .historic{
+    text-align:right; font-family:'IBM Plex Mono', monospace; font-size:12px; color:#C7CEDB;
+  }
+  .historic strong{
+    display:block; font-size:18px; font-weight:600; margin-top:2px;
+  }
+  .gear{
+    background:none; border:1px solid #4A5A78; color:#C7CEDB; width:30px; height:30px; border-radius:50%;
+    cursor:pointer; font-size:14px; margin-top:6px;
+  }
+  .gear:hover{border-color:var(--brass); color:var(--white);}
+
+  main{
+    max-width:980px; margin:0 auto; padding:20px 18px 60px;
+    display:grid; grid-template-columns:1fr 280px; gap:22px; align-items:start;
+  }
+
+  .month-nav{
+    grid-column:1 / -1;
+    display:flex; align-items:center; justify-content:center; gap:18px;
+    margin-bottom:4px;
+  }
+  .month-nav button{
+    background:none; border:1px solid var(--ink); color:var(--ink);
+    width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:16px;
+    display:flex; align-items:center; justify-content:center;
+    transition:background .15s, color .15s;
+  }
+  .month-nav button:hover{background:var(--ink); color:var(--white);}
+  .month-label{
+    font-family:'Special Elite', monospace; font-size:19px; text-align:center; min-width:200px;
+  }
+  .status-badge{
+    display:inline-block; font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:1px;
+    padding:2px 8px; border-radius:10px; margin-left:8px; vertical-align:middle; font-weight:600;
+  }
+  .status-open{background:var(--brass-track); color:#6b552a;}
+  .status-closed{background:#F3DAD6; color:var(--red);}
+
+  .entry-slip{
+    grid-column:1 / -1;
+    background:var(--white);
+    border:1px solid var(--paper-edge);
+    border-bottom:2px dashed var(--paper-edge);
+    border-radius:var(--radius);
+    padding:18px 20px 16px;
+    transform:rotate(-0.35deg);
+    box-shadow:0 3px 10px rgba(20,33,61,0.07);
+  }
+  .entry-slip h2{
+    font-family:'Special Elite', monospace; font-size:13px; letter-spacing:1px;
+    margin:0 0 12px; color:var(--ink-soft); text-transform:uppercase;
+  }
+  .capture-form{display:flex; gap:10px; align-items:stretch; flex-wrap:wrap;}
+  .capture-form input[type=text]{
+    flex:1; min-width:200px; font-size:15px; padding:12px 14px;
+    border:1px solid var(--paper-edge); border-radius:var(--radius);
+    background:var(--paper-light); color:var(--ink); font-family:'IBM Plex Sans';
+  }
+  button.stamp-btn{
+    font-family:'Special Elite', monospace; font-size:13px; letter-spacing:.5px;
+    background:var(--red); color:var(--white); border:none; border-radius:var(--radius);
+    padding:0 18px; cursor:pointer; transition:transform .08s ease;
+  }
+  button.stamp-btn:active{transform:scale(0.95);}
+  button.stamp-btn:disabled{opacity:.5; cursor:default;}
+  .capture-hint{font-size:11.5px; color:var(--muted); margin-top:9px; line-height:1.5;}
+  .capture-feedback{
+    font-size:12.5px; color:var(--ink-soft); margin-top:7px; font-family:'IBM Plex Mono',monospace;
+    opacity:0; transition:opacity .25s; min-height:16px;
+  }
+  .capture-feedback.show{opacity:1;}
+  .capture-error{font-size:12px; color:var(--red); margin-top:7px; display:none;}
+
+  .ledger-wrap{
+    background:var(--white);
+    border:1px solid var(--paper-edge);
+    border-radius:var(--radius);
+    overflow:hidden;
+    position:relative;
+    padding-left:36px;
+  }
+  .ledger-wrap::before{
+    content:''; position:absolute; left:28px; top:0; bottom:0; width:1.5px; background:var(--red); opacity:.45;
+  }
+  .ledger-scroll{overflow-x:auto;}
+  table.ledger{ width:100%; border-collapse:collapse; font-size:13.5px; min-width:560px;}
+  table.ledger thead th{
+    font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:.6px; text-transform:uppercase;
+    color:var(--muted); text-align:left; padding:10px 10px; border-bottom:1.5px solid var(--ink);
+  }
+  table.ledger thead th.num{text-align:right;}
+  table.ledger tbody td{
+    padding:8px 10px; border-bottom:1px solid var(--paper-edge); vertical-align:middle;
+  }
+  table.ledger tbody tr:nth-child(odd){background:var(--paper-light);}
+  table.ledger tbody tr:nth-child(even){background:var(--paper-dark);}
+  table.ledger td.txt{color:var(--ink-soft);}
+  table.ledger td.amt{ text-align:right; font-family:'IBM Plex Mono', monospace; font-weight:600;}
+  table.ledger td.amt.pos{color:var(--ink);}
+  table.ledger td.amt.neg{color:var(--red);}
+  table.ledger td.saldo{ text-align:right; font-family:'IBM Plex Mono', monospace;}
+  table.ledger td.saldo.neg{color:var(--red);}
+  table.ledger td.saldo.pos{color:var(--ink-soft);}
+  table.ledger td.del{ text-align:center; width:30px; }
+  .del-btn{
+    background:none; border:none; color:var(--muted); cursor:pointer; font-size:14px; padding:2px 6px;
+    border-radius:50%; line-height:1;
+  }
+  .del-btn:hover{color:var(--red); background:#F3DAD6;}
+  .badge-cat{
+    display:inline-block; font-size:11px; padding:3px 9px; border-radius:10px; cursor:pointer;
+    border:1px dashed var(--paper-edge); background:var(--paper-light); color:var(--ink-soft);
+    font-family:'IBM Plex Sans'; white-space:nowrap;
+  }
+  .badge-cat:hover{border-color:var(--brass); color:var(--ink);}
+  .badge-cat.income{background:#E5ECE3; color:var(--ink); border-style:solid; border-color:var(--brass);}
+  .empty-state{
+    padding:34px 20px; text-align:center; color:var(--muted); font-family:'IBM Plex Mono', monospace; font-size:13px;
+  }
+
+  aside.summary{
+    background:var(--white); border:1px solid var(--paper-edge); border-radius:var(--radius);
+    padding:18px; position:sticky; top:14px;
+  }
+  aside.summary h2{
+    font-family:'Special Elite', monospace; font-size:13px; letter-spacing:1px; text-transform:uppercase;
+    color:var(--ink-soft); margin:0 0 12px;
+  }
+  .income-line{
+    display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:14px;
+    padding-bottom:12px; border-bottom:1px dashed var(--paper-edge);
+  }
+  .income-line .amt{font-family:'IBM Plex Mono',monospace; color:var(--ink); font-weight:600;}
+  .cat-row{margin-bottom:11px;}
+  .cat-row .top{display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:4px;}
+  .cat-row .top .amt{font-family:'IBM Plex Mono', monospace;}
+  .bar-track{height:6px; background:var(--brass-track); border-radius:3px; overflow:hidden;}
+  .bar-fill{height:100%; background:var(--brass);}
+
+  .stamp-wrap{margin-top:18px; padding-top:16px; border-top:1px dashed var(--paper-edge); text-align:center;}
+  .stamp{
+    display:inline-flex; flex-direction:column; align-items:center; justify-content:center;
+    width:128px; height:128px; border-radius:50%;
+    border:3px solid var(--ink); color:var(--ink);
+    transform:rotate(-9deg);
+    font-family:'Special Elite', monospace;
+    position:relative;
+  }
+  .stamp.neg{ border-color:var(--red); color:var(--red); }
+  .stamp::before{
+    content:''; position:absolute; inset:7px; border:1px solid currentColor; border-radius:50%; opacity:.5;
+  }
+  .stamp .label{font-size:9px; letter-spacing:1.5px;}
+  .stamp .amount{font-size:15px; margin-top:4px; font-weight:700;}
+  @media (prefers-reduced-motion:no-preference){
+    .stamp{ animation:thump .35s ease-out; }
+  }
+  @keyframes thump{
+    0%{transform:rotate(-9deg) scale(1.25); opacity:0;}
+    60%{transform:rotate(-9deg) scale(.95); opacity:1;}
+    100%{transform:rotate(-9deg) scale(1);}
+  }
+  .meta-line{font-size:11px; color:var(--muted); text-align:center; margin-top:8px; font-family:'IBM Plex Mono', monospace;}
+
+  .save-status{
+    position:fixed; bottom:14px; right:14px; font-family:'IBM Plex Mono',monospace; font-size:11px;
+    background:var(--ink); color:var(--white); padding:6px 12px; border-radius:14px;
+    opacity:0; transform:translateY(6px); transition:.25s;
+    pointer-events:none; z-index:50;
+  }
+  .save-status.show{opacity:1; transform:translateY(0);}
+  .save-status.err{background:var(--red);}
+
+  .reset-row{grid-column:1/-1; text-align:center; margin-top:6px; display:flex; justify-content:center; gap:18px;}
+  .reset-row button{
+    background:none; border:none; color:var(--muted); font-size:11px; text-decoration:underline; cursor:pointer;
+    font-family:'IBM Plex Sans';
+  }
+  .reset-row button:hover{color:var(--red);}
+
+  .loading{padding:60px 20px; text-align:center; font-family:'Special Elite', monospace; color:var(--ink-soft);}
+
+  /* settings card */
+  .settings-card{
+    max-width:480px; margin:40px auto; background:var(--white); border:1px solid var(--paper-edge);
+    border-radius:var(--radius); padding:24px 22px; box-shadow:0 3px 10px rgba(20,33,61,0.07);
+  }
+  .settings-card h2{font-family:'Special Elite',monospace; font-size:16px; margin:0 0 10px;}
+  .settings-card p{font-size:13px; color:var(--ink-soft); line-height:1.6; margin:0 0 14px;}
+  .settings-card input[type=text]{
+    width:100%; font-size:13.5px; padding:10px 12px; border:1px solid var(--paper-edge);
+    border-radius:var(--radius); background:var(--paper-light); color:var(--ink); font-family:'IBM Plex Mono',monospace;
+    margin-bottom:10px;
+  }
+  .settings-card .err{font-size:12px; color:var(--red); margin-bottom:10px; display:none;}
+
+  @media (max-width:760px){
+    main{grid-template-columns:1fr;}
+    aside.summary{position:static;}
+    .ledger-wrap{padding-left:22px;}
+    .ledger-wrap::before{left:16px;}
+    .capture-form{flex-direction:column;}
+    button.stamp-btn{padding:12px 18px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="cover-row">
+    <div>
+      <h1>Libro de Gastos</h1>
+      <p>escribe y yo anoto el resto</p>
+    </div>
+    <div class="historic">
+      balance histórico
+      <strong id="historicTotal">$0.00</strong>
+      <div><button class="gear" id="gearBtn" title="Configurar conexión">⚙</button></div>
+    </div>
+  </div>
+</div>
+
+<main id="main">
+  <div class="loading" style="grid-column:1/-1;">Abriendo el libro…</div>
+</main>
+
+<div class="save-status" id="saveStatus">guardado</div>
+
+<template id="settingsTemplate">
+  <div class="settings-card">
+    <h2>Conecta tu Google Sheet</h2>
+    <p>Pega aquí la URL de tu Apps Script (termina en <code>/exec</code>). Tus gastos se guardarán ahí, no en Claude — solo recuerdo esta URL para que no tengas que volver a pegarla.</p>
+    <input type="text" id="urlInput" placeholder="https://script.google.com/macros/s/..../exec" />
+    <div class="err" id="settingsErr"></div>
+    <button type="button" class="stamp-btn" id="connectBtn" style="width:100%;height:40px;">Conectar</button>
+  </div>
+</template>
+
+<template id="appTemplate">
+  <div class="month-nav">
+    <button type="button" id="prevMonth" aria-label="Mes anterior">‹</button>
+    <div class="month-label" id="monthLabel">—<span class="status-badge" id="statusBadge"></span></div>
+    <button type="button" id="nextMonth" aria-label="Mes siguiente">›</button>
+  </div>
+
+  <section class="entry-slip">
+    <h2>Anotar</h2>
+    <form class="capture-form" id="captureForm">
+      <input type="text" id="captureInput" autocomplete="off"
+        placeholder="ej: almuerzo 5 · uber 3.50 · recibí 300 sueldo" />
+      <button type="submit" class="stamp-btn" id="submitBtn">Anotar +</button>
+    </form>
+    <div class="capture-hint">Escribe qué fue y cuánto. Detecto solo si es gasto o ingreso, la categoría y uso la fecha de hoy. Si me equivoco, toca la categoría en la tabla para corregirla.</div>
+    <div class="capture-feedback" id="captureFeedback"></div>
+    <div class="capture-error" id="captureError"></div>
+  </section>
+
+  <section class="ledger-wrap">
+    <div class="ledger-scroll">
+      <table class="ledger">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Lo que escribiste</th>
+            <th>Categoría</th>
+            <th class="num">Monto</th>
+            <th class="num">Saldo</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="ledgerBody"></tbody>
+      </table>
+    </div>
+    <div class="empty-state" id="emptyState" style="display:none;">Aún no has anotado nada este mes. Escribe arriba ↑</div>
+  </section>
+
+  <aside class="summary">
+    <h2>Resumen del mes</h2>
+    <div class="income-line"><span>Ingresos</span><span class="amt" id="incomeTotal">$0.00</span></div>
+    <div id="catSummary"></div>
+    <div class="stamp-wrap">
+      <div class="stamp" id="monthStamp">
+        <span class="label" id="stampLabel">BALANCE DEL MES</span>
+        <span class="amount" id="stampAmount">$0.00</span>
+      </div>
+      <div class="meta-line" id="metaLine"></div>
+    </div>
+  </aside>
+
+  <div class="reset-row">
+    <button type="button" id="resetBtn">Borrar todos los datos</button>
+    <button type="button" id="reconnectBtn">Cambiar conexión</button>
+  </div>
+</template>
+
+<script>
+(function(){
+  const CONFIG_KEY = 'script_url';
+  const DEFAULT_CATEGORIES = ['Comida','Transporte','Vivienda','Servicios','Salud','Entretenimiento','Compras','Otros'];
+  const CYCLE = DEFAULT_CATEGORIES.concat(['Ingreso']);
+  const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+  const INCOME_WORDS = ['recib','ingreso','cobr','gan','sueldo','salario','deposit','dep\u00f3sit','vend','venta','bono','reembolso','devoluci'];
+  const CATEGORY_MAP = {
+    'Comida': ['almuerzo','comida','desayuno','cena','restaurante','caf\u00e9','cafe','pan','mercado','super','merienda','snack'],
+    'Transporte': ['uber','taxi','bus','pasaje','gasolina','combustible','parqueo','parqueadero','transporte','gasolinera'],
+    'Vivienda': ['arriendo','alquiler','renta','hipoteca'],
+    'Servicios': ['luz','agua','internet','netflix','spotify','celular','tel\u00e9fono','telefono','factura','servicio','plan'],
+    'Salud': ['doctor','m\u00e9dico','medico','farmacia','medicina','consulta','hospital','dentista'],
+    'Entretenimiento': ['cine','salida','bar','fiesta','concierto','juego','entretenimiento'],
+    'Compras': ['ropa','zapatos','compra','tienda','regalo']
+  };
+
+  let SCRIPT_URL = null;
+  let expenses = [];
+  let currentMonthKey = monthKeyOf(new Date());
+
+  const main = document.getElementById('main');
+
+  function pad(n){ return n.toString().padStart(2,'0'); }
+  function monthKeyOf(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}`; }
+  function todayISO(){
+    const d = new Date();
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  }
+  function fmtMoney(n){
+    return '$' + Math.abs(n).toLocaleString('es-EC', {minimumFractionDigits:2, maximumFractionDigits:2});
+  }
+  function monthLabelOf(key){
+    const [y,m] = key.split('-').map(Number);
+    const name = MESES[m-1];
+    return name.charAt(0).toUpperCase()+name.slice(1) + ' ' + y;
+  }
+  function shiftMonthKey(key, delta){
+    const [y,m] = key.split('-').map(Number);
+    const d = new Date(y, m-1+delta, 1);
+    return monthKeyOf(d);
+  }
+  function fmtDateShort(iso){
+    const parts = String(iso).split('-');
+    if(parts.length<3) return iso;
+    return `${parts[2].slice(0,2)}/${parts[1]}`;
+  }
+  function escapeHTML(str){
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function parseEntry(raw){
+    let text = raw.trim();
+    let forcedType = null;
+    if(/^\+/.test(text)){ forcedType='ingreso'; text = text.replace(/^\+\s*/, ''); }
+    else if(/^-/.test(text)){ forcedType='gasto'; text = text.replace(/^-\s*/, ''); }
+
+    const numMatch = text.match(/(\d+(?:[.,]\d+)?)/);
+    const amount = numMatch ? parseFloat(numMatch[1].replace(',', '.')) : null;
+
+    const lower = text.toLowerCase();
+    let type = forcedType || (INCOME_WORDS.some(w=>lower.includes(w)) ? 'ingreso' : 'gasto');
+
+    let category = 'Otros';
+    if(type === 'ingreso'){
+      category = 'Ingreso';
+    } else {
+      for(const [cat, words] of Object.entries(CATEGORY_MAP)){
+        if(words.some(w=>lower.includes(w))){ category = cat; break; }
+      }
+    }
+    return { amount, type, category };
+  }
+
+  function showSaveStatus(ok, msg){
+    const el = document.getElementById('saveStatus');
+    if(!el) return;
+    el.textContent = msg || (ok ? 'guardado' : 'no se pudo guardar');
+    el.classList.toggle('err', !ok);
+    el.classList.add('show');
+    clearTimeout(el._t);
+    el._t = setTimeout(()=> el.classList.remove('show'), 2000);
+  }
+
+  // ---- config (only the connection URL lives in Claude's storage) ----
+  async function loadConfig(){
+    try{
+      const res = await window.storage.get(CONFIG_KEY, false);
+      SCRIPT_URL = res && res.value ? res.value : null;
+    }catch(e){ SCRIPT_URL = null; }
+  }
+  async function saveConfig(url){
+    SCRIPT_URL = url;
+    try{ await window.storage.set(CONFIG_KEY, url, false); }catch(e){ /* non-fatal */ }
+  }
+
+  // ---- Google Sheets API (the real data) ----
+  async function apiList(){
+    const res = await fetch(SCRIPT_URL);
+    const data = await res.json();
+    if(!data.ok) throw new Error('list failed');
+    return (data.rows||[]).map(r=>({ id:String(r.id), date:r.date, type:r.type, category:r.category, amount:Number(r.amount), text:r.text }));
+  }
+  async function apiAdd(entry){
+    const res = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'add', entry}) });
+    const data = await res.json();
+    if(!data.ok) throw new Error('add failed');
+  }
+  async function apiDelete(id){
+    const res = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'delete', id}) });
+    const data = await res.json();
+    if(!data.ok) throw new Error('delete failed');
+  }
+  async function apiUpdate(id, type, category){
+    const res = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'update', id, type, category}) });
+    const data = await res.json();
+    if(!data.ok) throw new Error('update failed');
+  }
+  async function apiClear(){
+    const res = await fetch(SCRIPT_URL, { method:'POST', body: JSON.stringify({action:'clear'}) });
+    const data = await res.json();
+    if(!data.ok) throw new Error('clear failed');
+  }
+
+  // ---- settings screen ----
+  function showSettings(prefillError){
+    main.innerHTML = '';
+    const tpl = document.getElementById('settingsTemplate');
+    main.appendChild(tpl.content.cloneNode(true));
+    const errEl = document.getElementById('settingsErr');
+    if(prefillError){ errEl.textContent = prefillError; errEl.style.display='block'; }
+    document.getElementById('connectBtn').addEventListener('click', async ()=>{
+      const url = document.getElementById('urlInput').value.trim();
+      if(!url.startsWith('https://script.google.com/')){
+        errEl.textContent = 'Esa no parece una URL de Apps Script. Debe empezar con https://script.google.com/ y terminar en /exec';
+        errEl.style.display = 'block';
+        return;
+      }
+      const btn = document.getElementById('connectBtn');
+      btn.disabled = true; btn.textContent = 'Conectando…';
+      const prevUrl = SCRIPT_URL;
+      SCRIPT_URL = url;
+      try{
+        expenses = await apiList();
+        await saveConfig(url);
+        buildUI(); render();
+      }catch(e){
+        SCRIPT_URL = prevUrl;
+        btn.disabled = false; btn.textContent = 'Conectar';
+        errEl.textContent = 'No pude conectar. Revisa que copiaste la URL completa y que el acceso esté en "Cualquier usuario".';
+        errEl.style.display = 'block';
+      }
+    });
+  }
+
+  function buildUI(){
+    const tpl = document.getElementById('appTemplate');
+    main.innerHTML = '';
+    main.appendChild(tpl.content.cloneNode(true));
+
+    document.getElementById('prevMonth').addEventListener('click', ()=>{
+      currentMonthKey = shiftMonthKey(currentMonthKey, -1);
+      render();
+    });
+    document.getElementById('nextMonth').addEventListener('click', ()=>{
+      currentMonthKey = shiftMonthKey(currentMonthKey, 1);
+      render();
+    });
+
+    document.getElementById('captureForm').addEventListener('submit', onCapture);
+    document.getElementById('resetBtn').addEventListener('click', onReset);
+    document.getElementById('reconnectBtn').addEventListener('click', ()=> showSettings());
+
+    document.getElementById('captureInput').focus();
+  }
+
+  function flashFeedback(entry){
+    const fb = document.getElementById('captureFeedback');
+    if(!fb) return;
+    const sign = entry.type === 'ingreso' ? '+' : '-';
+    fb.textContent = `Anotado: ${sign}${fmtMoney(entry.amount)} · ${entry.category} · hoy`;
+    fb.classList.add('show');
+    clearTimeout(fb._t);
+    fb._t = setTimeout(()=> fb.classList.remove('show'), 2600);
+  }
+
+  async function onCapture(e){
+    e.preventDefault();
+    const input = document.getElementById('captureInput');
+    const errEl = document.getElementById('captureError');
+    const submitBtn = document.getElementById('submitBtn');
+    errEl.style.display = 'none';
+
+    const raw = input.value.trim();
+    if(!raw) return;
+
+    const parsed = parseEntry(raw);
+    if(parsed.amount === null || isNaN(parsed.amount) || parsed.amount <= 0){
+      errEl.textContent = 'No encontré un monto ahí. Prueba algo como "almuerzo 5" o "recibí 300 sueldo".';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    const entry = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
+      date: todayISO(),
+      type: parsed.type,
+      category: parsed.category,
+      amount: parsed.amount,
+      text: raw
+    };
+
+    // optimistic UI
+    expenses.push(entry);
+    currentMonthKey = entry.date.slice(0,7);
+    input.value = '';
+    flashFeedback(entry);
+    render();
+    input.focus();
+
+    submitBtn.disabled = true;
+    try{
+      await apiAdd(entry);
+      showSaveStatus(true);
+    }catch(err){
+      expenses = expenses.filter(x=>x.id !== entry.id);
+      input.value = raw;
+      showSaveStatus(false, 'no se pudo guardar, revisa tu internet');
+      render();
+    }
+    submitBtn.disabled = false;
+  }
+
+  async function onDelete(id){
+    const backup = expenses;
+    expenses = expenses.filter(x=>x.id !== id);
+    render();
+    try{
+      await apiDelete(id);
+      showSaveStatus(true, 'eliminado');
+    }catch(e){
+      expenses = backup;
+      showSaveStatus(false);
+      render();
+    }
+  }
+
+  async function onCycleCategory(id){
+    const row = expenses.find(x=>x.id === id);
+    if(!row) return;
+    const prevType = row.type, prevCat = row.category;
+    const currentLabel = row.type === 'ingreso' ? 'Ingreso' : row.category;
+    const idx = CYCLE.indexOf(currentLabel);
+    const next = CYCLE[(idx + 1) % CYCLE.length];
+    if(next === 'Ingreso'){ row.type = 'ingreso'; row.category = 'Ingreso'; }
+    else { row.type = 'gasto'; row.category = next; }
+    render();
+    try{
+      await apiUpdate(id, row.type, row.category);
+      showSaveStatus(true);
+    }catch(e){
+      row.type = prevType; row.category = prevCat;
+      showSaveStatus(false);
+      render();
+    }
+  }
+
+  async function onReset(){
+    if(!confirm('¿Borrar todos los gastos e ingresos guardados en tu Google Sheet? Esto no se puede deshacer.')) return;
+    try{
+      await apiClear();
+      expenses = [];
+      render();
+      showSaveStatus(true, 'borrado');
+    }catch(e){
+      showSaveStatus(false);
+    }
+  }
+
+  function render(){
+    const netHist = expenses.reduce((s,x)=> s + (x.type==='ingreso' ? x.amount : -x.amount), 0);
+    const histEl = document.getElementById('historicTotal');
+    histEl.textContent = (netHist < 0 ? '-' : '') + fmtMoney(netHist);
+    histEl.style.color = netHist < 0 ? '#E8978B' : '#FBFAF6';
+
+    document.getElementById('monthLabel').firstChild.textContent = monthLabelOf(currentMonthKey) + ' ';
+    const todayKey = monthKeyOf(new Date());
+    const badge = document.getElementById('statusBadge');
+    const monthRows = expenses
+      .filter(x=>x.date.slice(0,7) === currentMonthKey)
+      .sort((a,b)=> a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+
+    if(currentMonthKey === todayKey){
+      badge.textContent = 'ABIERTO';
+      badge.className = 'status-badge status-open';
+    } else if(currentMonthKey < todayKey){
+      badge.textContent = monthRows.length ? 'CERRADO' : 'SIN DATOS';
+      badge.className = 'status-badge ' + (monthRows.length ? 'status-closed' : 'status-open');
+    } else {
+      badge.textContent = 'FUTURO';
+      badge.className = 'status-badge status-open';
+    }
+
+    const body = document.getElementById('ledgerBody');
+    const empty = document.getElementById('emptyState');
+    body.innerHTML = '';
+    if(monthRows.length === 0){
+      empty.style.display = 'block';
+    } else {
+      empty.style.display = 'none';
+      let running = 0;
+      monthRows.forEach(row=>{
+        running += (row.type === 'ingreso' ? row.amount : -row.amount);
+        const isIncome = row.type === 'ingreso';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${fmtDateShort(row.date)}</td>
+          <td class="txt">${escapeHTML(row.text)}</td>
+          <td><span class="badge-cat ${isIncome?'income':''}" data-id="${row.id}" title="Toca para corregir">${escapeHTML(row.category)}</span></td>
+          <td class="amt ${isIncome?'pos':'neg'}">${isIncome?'+':'-'}${fmtMoney(row.amount)}</td>
+          <td class="saldo ${running<0?'neg':'pos'}">${running<0?'-':''}${fmtMoney(running)}</td>
+          <td class="del"><button class="del-btn" aria-label="Eliminar" title="Eliminar">✕</button></td>
+        `;
+        tr.querySelector('.del-btn').addEventListener('click', ()=> onDelete(row.id));
+        tr.querySelector('.badge-cat').addEventListener('click', ()=> onCycleCategory(row.id));
+        body.appendChild(tr);
+      });
+    }
+
+    const gastoRows = monthRows.filter(r=>r.type==='gasto');
+    const ingresoRows = monthRows.filter(r=>r.type==='ingreso');
+    const incomeTotal = ingresoRows.reduce((s,x)=>s+x.amount,0);
+    document.getElementById('incomeTotal').textContent = fmtMoney(incomeTotal);
+
+    const totalsByCategory = {};
+    gastoRows.forEach(r=>{ totalsByCategory[r.category] = (totalsByCategory[r.category]||0) + r.amount; });
+    const catEntries = Object.entries(totalsByCategory).sort((a,b)=> b[1]-a[1]);
+    const maxVal = catEntries.length ? catEntries[0][1] : 0;
+    const catSummary = document.getElementById('catSummary');
+    catSummary.innerHTML = '';
+    if(catEntries.length === 0){
+      catSummary.innerHTML = '<p style="font-size:12px;color:var(--muted);">Sin gastos aún.</p>';
+    } else {
+      catEntries.forEach(([cat, val])=>{
+        const pct = maxVal ? Math.round((val/maxVal)*100) : 0;
+        const div = document.createElement('div');
+        div.className = 'cat-row';
+        div.innerHTML = `
+          <div class="top"><span>${escapeHTML(cat)}</span><span class="amt">${fmtMoney(val)}</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width:${pct}%;"></div></div>
+        `;
+        catSummary.appendChild(div);
+      });
+    }
+
+    const gastoTotal = gastoRows.reduce((s,x)=>s+x.amount,0);
+    const balance = incomeTotal - gastoTotal;
+    const stamp = document.getElementById('monthStamp');
+    stamp.classList.toggle('neg', balance < 0);
+    document.getElementById('stampAmount').textContent = (balance<0?'-':'') + fmtMoney(balance);
+    document.getElementById('stampLabel').textContent = currentMonthKey < todayKey ? 'BALANCE · CERRADO' : 'BALANCE DEL MES';
+    document.getElementById('metaLine').textContent =
+      `${gastoRows.length} gasto${gastoRows.length===1?'':'s'} · ${ingresoRows.length} ingreso${ingresoRows.length===1?'':'s'}`;
+  }
+
+  document.getElementById('gearBtn').addEventListener('click', ()=> showSettings());
+
+  (async function init(){
+    await loadConfig();
+    if(!SCRIPT_URL){ showSettings(); return; }
+    try{
+      expenses = await apiList();
+      buildUI(); render();
+    }catch(e){
+      showSettings('No pude conectar con tu hoja. Verifica la URL e inténtalo otra vez.');
+    }
+  })();
+})();
+</script>
+
+</body>
+</html>
